@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "y9Ods8I4Hgo=",
+  "success": true,
+  "projectFilePath": "F:\\!!!AAAA\\Proyectos\\ImpresoraVirtual\\PrintManager\\PrintManager.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Pp\\.nuget\\packages\\microsoft.win32.systemevents\\10.0.1\\microsoft.win32.systemevents.10.0.1.nupkg.sha512",
+    "C:\\Users\\Pp\\.nuget\\packages\\system.drawing.common\\10.0.1\\system.drawing.common.10.0.1.nupkg.sha512"
+  ],
+  "logs": []
+}
