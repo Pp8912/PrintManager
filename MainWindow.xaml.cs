@@ -117,11 +117,11 @@ namespace PrintManager
             _spoolWatcher.Start();
         }
 
-        private void OnSpoolDocumentReady(string pdfPath)
+        private void OnSpoolDocumentReady(string pdfPath, string documentName)
         {
             Dispatcher.Invoke(() =>
             {
-                AddDocumentToQueue(pdfPath);
+                AddDocumentToQueue(pdfPath, documentName);
 
                 // Mostrar la ventana si estaba minimizada
                 Show();
@@ -138,11 +138,11 @@ namespace PrintManager
         }
 
         /// <summary>Agrega un documento a la cola de impresión.</summary>
-        private async void AddDocumentToQueue(string filePath)
+        private async void AddDocumentToQueue(string filePath, string? documentName = null)
         {
             var job = new PrintJob
             {
-                FileName = Path.GetFileName(filePath),
+                FileName = documentName ?? Path.GetFileName(filePath),
                 FilePath = filePath,
                 Status = "Procesando..."
             };
@@ -316,7 +316,8 @@ namespace PrintManager
             {
                 var pageInfo = job.PageInfo;
                 var filePath = job.FilePath;
-                await Task.Run(() => _gsService.PrintDocument(filePath, selectedPrinter, colorOption, pageInfo));
+                var jobName = job.FileName;
+                await Task.Run(() => _gsService.PrintDocument(filePath, selectedPrinter, colorOption, pageInfo, jobName));
 
                 job.Status = "✅ Impreso";
                 StatusText.Text = $"✅ {job.FileName} enviado a impresión.";

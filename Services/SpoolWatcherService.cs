@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace PrintManager.Services
@@ -18,8 +19,8 @@ namespace PrintManager.Services
         private bool _processing;
         private readonly object _lock = new();
 
-        /// <summary>Se dispara cuando un nuevo PDF está listo para preview.</summary>
-        public event Action<string>? DocumentReady;
+        /// <summary>Se dispara cuando un nuevo PDF está listo: (pdfPath, documentName)</summary>
+        public event Action<string, string>? DocumentReady;
 
         public SpoolWatcherService(GhostscriptService gsService, string spoolFolder = @"C:\PrintManagerSpool")
         {
@@ -33,7 +34,6 @@ namespace PrintManager.Services
             if (!Directory.Exists(_spoolFolder))
                 Directory.CreateDirectory(_spoolFolder);
 
-            // Procesar archivo existente si hay
             if (File.Exists(_spoolFile))
             {
                 _ = ProcessSpoolFileAsync();
@@ -70,7 +70,6 @@ namespace PrintManager.Services
 
         private async Task ProcessSpoolFileAsync()
         {
-            // Evitar procesamiento simultáneo (FileSystemWatcher puede disparar múltiples eventos)
             lock (_lock)
             {
                 if (_processing) return;
@@ -79,10 +78,12 @@ namespace PrintManager.Services
 
             try
             {
-                // Esperar un momento para que el spooler termine de escribir
-                await Task.Delay(2000);
+                // IMPORTANTE: Capturar el nombre del documento AHORA, antes de que el
+                // spooler termine y elimine el trabajo de la cola.
+                // El trabajo aún está en estado "Printing" mientras se escribe el archivo.
+                string documentName = GetDocumentNameFromSpooler();
 
-                // Esperar a que el archivo esté disponible
+                await Task.Delay(2000);
                 await WaitForFileReady(_spoolFile);
 
                 if (!File.Exists(_spoolFile)) return;
@@ -90,11 +91,11 @@ namespace PrintManager.Services
                 var info = new FileInfo(_spoolFile);
                 if (info.Length < 100) return;
 
-                // Copiar el archivo a una ubicación temporal antes de procesarlo
+                // Copiar archivo a ubicación temporal
                 string tempPs = Path.Combine(Path.GetTempPath(), $"spool_{Guid.NewGuid():N}.ps");
                 File.Copy(_spoolFile, tempPs, true);
 
-                // Eliminar el archivo del spool para liberar la cola de impresión
+                // Eliminar archivo del spool
                 try { File.Delete(_spoolFile); } catch { }
 
                 // Convertir PostScript a PDF
@@ -108,10 +109,10 @@ namespace PrintManager.Services
                     try { File.Delete(tempPs); } catch { }
                 }
 
-                // Notificar que el PDF está listo
+                // Notificar con nombre del documento
                 if (File.Exists(pdfPath))
                 {
-                    DocumentReady?.Invoke(pdfPath);
+                    DocumentReady?.Invoke(pdfPath, documentName);
                 }
             }
             catch (Exception ex)
@@ -128,8 +129,40 @@ namespace PrintManager.Services
         }
 
         /// <summary>
-        /// Espera hasta que el archivo esté disponible (no bloqueado por el spooler).
+        /// Obtiene el nombre del documento original consultando la cola de impresión
+        /// de "PrintManager Color" en el spooler de Windows.
+        /// Debe llamarse ANTES del delay, mientras el trabajo aún está en la cola.
         /// </summary>
+        private string GetDocumentNameFromSpooler()
+        {
+            try
+            {
+                using var ps = new System.Printing.LocalPrintServer();
+                var queues = ps.GetPrintQueues();
+                var pmQueue = queues.FirstOrDefault(q =>
+                    q.Name.Equals("PrintManager Color", StringComparison.OrdinalIgnoreCase));
+
+                if (pmQueue != null)
+                {
+                    pmQueue.Refresh();
+                    var jobs = pmQueue.GetPrintJobInfoCollection();
+                    foreach (var job in jobs)
+                    {
+                        string name = job.Name;
+                        // Ignorar nombres genéricos del driver
+                        if (!string.IsNullOrWhiteSpace(name)
+                            && !name.Equals("MSxpsPS", StringComparison.OrdinalIgnoreCase))
+                        {
+                            return name;
+                        }
+                    }
+                }
+            }
+            catch { }
+
+            return "Documento";
+        }
+
         private async Task WaitForFileReady(string path, int maxWaitMs = 30000)
         {
             int waited = 0;
@@ -141,7 +174,7 @@ namespace PrintManager.Services
                 {
                     if (!File.Exists(path)) return;
                     using var fs = File.Open(path, FileMode.Open, FileAccess.Read, FileShare.None);
-                    return; // Archivo disponible
+                    return;
                 }
                 catch (IOException)
                 {

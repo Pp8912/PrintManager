@@ -218,7 +218,7 @@ namespace PrintManager.Services
             return new PageInfo();
         }
 
-        public void PrintDocument(string? pdfPath, string? printerName, ColorOption? colorOption, PageInfo? pageInfo)
+        public void PrintDocument(string? pdfPath, string? printerName, ColorOption? colorOption, PageInfo? pageInfo, string? jobName = null)
         {
             if (!File.Exists(pdfPath)) throw new FileNotFoundException("PDF no encontrado");
 
@@ -263,7 +263,7 @@ namespace PrintManager.Services
                         throw new Exception("No se pudo renderizar el PDF a imagen.");
 
                     // Paso 3: Imprimir la imagen con WPF System.Printing
-                    PrintImageViaWpf(tempPng, printerName!, pageInfo);
+                    PrintImageViaWpf(tempPng, printerName!, pageInfo, jobName);
                 }
                 finally
                 {
@@ -278,60 +278,36 @@ namespace PrintManager.Services
         }
 
         /// <summary>
-        /// Imprime una imagen PNG usando WPF System.Printing.
-        /// Respeta la orientación y tamaño original del documento.
+        /// Imprime una imagen PNG usando System.Drawing.Printing.
+        /// Respeta la orientación, tamaño original y nombre del documento.
         /// </summary>
-        private void PrintImageViaWpf(string imagePath, string printerName, PageInfo? pageInfo)
+        private void PrintImageViaWpf(string imagePath, string printerName, PageInfo? pageInfo, string? jobName = null)
         {
-            // Cargar la imagen
-            var bitmap = new BitmapImage();
-            bitmap.BeginInit();
-            bitmap.CacheOption = BitmapCacheOption.OnLoad;
-            bitmap.UriSource = new Uri(imagePath);
-            bitmap.EndInit();
-            bitmap.Freeze();
+            using var img = System.Drawing.Image.FromFile(imagePath);
 
-            // Configurar PrintServer y PrintQueue
-            using var printServer = new System.Printing.LocalPrintServer();
-            System.Printing.PrintQueue? printQueue = null;
+            var pd = new System.Drawing.Printing.PrintDocument();
+            pd.PrinterSettings.PrinterName = printerName;
+            pd.DocumentName = jobName ?? "PrintManager";
 
-            foreach (System.Printing.PrintQueue pq in printServer.GetPrintQueues())
-            {
-                if (pq.Name.Equals(printerName, StringComparison.OrdinalIgnoreCase))
-                {
-                    printQueue = pq;
-                    break;
-                }
-            }
-
-            if (printQueue == null)
-                throw new Exception($"Impresora '{printerName}' no encontrada.");
-
-            // Configurar PrintTicket con orientación correcta
-            var ticket = printQueue.DefaultPrintTicket;
             bool isLandscape = pageInfo != null && !pageInfo.IsPortrait;
-            ticket.PageOrientation = isLandscape
-                ? System.Printing.PageOrientation.Landscape
-                : System.Printing.PageOrientation.Portrait;
+            pd.DefaultPageSettings.Landscape = isLandscape;
 
-            // Calcular el tamaño real de la imagen en unidades WPF (96 DPI)
-            // La imagen fue renderizada a 300 DPI, cada pixel = 1/300 pulgada
-            // WPF usa 96 DPI: tamaño WPF = (pixels / imageDPI) * 96
-            double imageDpiX = bitmap.DpiX > 0 ? bitmap.DpiX : 300;
-            double imageDpiY = bitmap.DpiY > 0 ? bitmap.DpiY : 300;
-            double imageWidthWpf = bitmap.PixelWidth / imageDpiX * 96.0;
-            double imageHeightWpf = bitmap.PixelHeight / imageDpiY * 96.0;
-
-            // Crear el visual para imprimir (imagen a tamaño original, sin escalado)
-            var visual = new System.Windows.Media.DrawingVisual();
-            using (var dc = visual.RenderOpen())
+            pd.PrintPage += (sender, e) =>
             {
-                dc.DrawImage(bitmap, new System.Windows.Rect(0, 0, imageWidthWpf, imageHeightWpf));
-            }
+                if (e.Graphics == null) return;
 
-            // Crear XpsDocumentWriter e imprimir
-            var writer = System.Printing.PrintQueue.CreateXpsDocumentWriter(printQueue);
-            writer.Write(visual, ticket);
+                // Calcular tamaño real en centésimas de pulgada (unidad de PrintDocument)
+                float dpiX = img.HorizontalResolution > 0 ? img.HorizontalResolution : 300;
+                float dpiY = img.VerticalResolution > 0 ? img.VerticalResolution : 300;
+                float widthInHundredths = img.Width / dpiX * 100f;
+                float heightInHundredths = img.Height / dpiY * 100f;
+
+                // Dibujar sin escalado, tamaño original
+                e.Graphics.DrawImage(img, 0, 0, widthInHundredths, heightInHundredths);
+                e.HasMorePages = false;
+            };
+
+            pd.Print();
         }
 
         /// <summary>
