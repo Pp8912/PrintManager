@@ -8,6 +8,7 @@ namespace PrintManager.Models
     public class PrintJob : INotifyPropertyChanged
     {
         private string _status = "Pendiente";
+        private int _copies = 1;
 
         public string Id { get; set; } = System.Guid.NewGuid().ToString("N")[..8];
         public string FileName { get; set; } = "";
@@ -15,6 +16,12 @@ namespace PrintManager.Models
         public int PageCount { get; set; }
         public PageInfo? PageInfo { get; set; }
         public System.DateTime ReceivedAt { get; set; } = System.DateTime.Now;
+
+        public int Copies
+        {
+            get => _copies;
+            set { _copies = value < 1 ? 1 : value; OnPropertyChanged(nameof(Copies)); }
+        }
 
         public string Status
         {

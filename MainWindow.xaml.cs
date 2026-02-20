@@ -283,16 +283,16 @@ namespace PrintManager
             await PrintJobAsync(_selectedJob);
         }
 
-        private async void PrintAllButton_Click(object sender, RoutedEventArgs e)
+        private async void PrintSelectedButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_printQueue.Count == 0)
+            var selected = DocumentList.SelectedItems.Cast<PrintJob>().ToList();
+            if (selected.Count == 0)
             {
-                MessageBox.Show("No hay documentos en la cola.");
+                MessageBox.Show("Seleccione al menos un documento de la cola.");
                 return;
             }
 
-            var jobs = _printQueue.ToList();
-            foreach (var job in jobs)
+            foreach (var job in selected)
             {
                 await PrintJobAsync(job);
             }
@@ -308,8 +308,9 @@ namespace PrintManager
             }
 
             var colorOption = ColorSelector.SelectedItem as ColorOption;
-            job.Status = "Imprimiendo...";
-            StatusText.Text = $"Imprimiendo: {job.FileName}...";
+            int copies = job.Copies;
+            job.Status = $"Imprimiendo ({copies} copia{(copies > 1 ? "s" : "")})...";
+            StatusText.Text = $"Imprimiendo: {job.FileName} × {copies}...";
             PrintButton.IsEnabled = false;
 
             try
@@ -317,10 +318,17 @@ namespace PrintManager
                 var pageInfo = job.PageInfo;
                 var filePath = job.FilePath;
                 var jobName = job.FileName;
-                await Task.Run(() => _gsService.PrintDocument(filePath, selectedPrinter, colorOption, pageInfo, jobName));
+
+                for (int i = 0; i < copies; i++)
+                {
+                    if (copies > 1)
+                        job.Status = $"Imprimiendo copia {i + 1}/{copies}...";
+
+                    await Task.Run(() => _gsService.PrintDocument(filePath, selectedPrinter, colorOption, pageInfo, jobName));
+                }
 
                 job.Status = "✅ Impreso";
-                StatusText.Text = $"✅ {job.FileName} enviado a impresión.";
+                StatusText.Text = $"✅ {job.FileName} enviado ({copies} copia{(copies > 1 ? "s" : "")}).";
 
                 // Remover de la cola después de imprimir
                 await Task.Delay(1500);
@@ -342,24 +350,38 @@ namespace PrintManager
             }
         }
 
-        private void ClearQueueButton_Click(object sender, RoutedEventArgs e)
+        private void RemoveSelectedButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_printQueue.Count == 0) return;
+            var selected = DocumentList.SelectedItems.Cast<PrintJob>().ToList();
+            if (selected.Count == 0) return;
 
-            var result = MessageBox.Show("¿Limpiar toda la cola de impresión?", "Confirmar",
-                MessageBoxButton.YesNo, MessageBoxImage.Question);
+            var result = MessageBox.Show(
+                $"¿Quitar {selected.Count} documento{(selected.Count > 1 ? "s" : "")} de la cola?",
+                "Confirmar", MessageBoxButton.YesNo, MessageBoxImage.Question);
 
             if (result == MessageBoxResult.Yes)
             {
-                foreach (var job in _printQueue)
+                foreach (var job in selected)
                 {
                     try { if (File.Exists(job.FilePath)) File.Delete(job.FilePath); } catch { }
+                    _printQueue.Remove(job);
                 }
-                _printQueue.Clear();
                 PreviewImage.Source = null;
                 ClearDocumentInfo();
-                StatusText.Text = "🟢 Cola limpiada. Vigilando...";
+                StatusText.Text = "🟢 Documentos removidos. Vigilando...";
             }
+        }
+
+        private void IncreaseCopies_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button btn && btn.Tag is PrintJob job)
+                job.Copies++;
+        }
+
+        private void DecreaseCopies_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is System.Windows.Controls.Button btn && btn.Tag is PrintJob job)
+                job.Copies--;
         }
 
         private void CancelButton_Click(object sender, RoutedEventArgs e)
