@@ -6,15 +6,24 @@ namespace PrintManager
     {
         public static string? InputFilePath { get; set; }
 
+        /// <summary>Indica que la app debe iniciar el monitoreo de la carpeta spool.</summary>
+        public static bool WatchSpool { get; set; } = true;
+
         private void Application_Startup(object sender, StartupEventArgs e)
         {
-            if (e.Args.Length > 0)
+            // Procesar argumentos de línea de comandos
+            foreach (var arg in e.Args)
             {
-                InputFilePath = e.Args[0];
+                if (arg.Equals("--no-spool", System.StringComparison.OrdinalIgnoreCase))
+                {
+                    WatchSpool = false;
+                }
+                else if (!arg.StartsWith("-"))
+                {
+                    // Es una ruta de archivo
+                    InputFilePath = arg;
+                }
             }
-            
-            // Para pruebas: si no hay argumento, usar un dummy si existe, o null.
-            // InputFilePath = @"C:\Temp\test.pdf"; 
 
             MainWindow mainWindow = new MainWindow();
             mainWindow.Show();

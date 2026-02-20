@@ -25,3 +25,4 @@ F:\!!!AAAA\Proyectos\ImpresoraVirtual\PrintManager\obj\Debug\net8.0-windows\refi
 F:\!!!AAAA\Proyectos\ImpresoraVirtual\PrintManager\obj\Debug\net8.0-windows\PrintManager.pdb
 F:\!!!AAAA\Proyectos\ImpresoraVirtual\PrintManager\obj\Debug\net8.0-windows\PrintManager.genruntimeconfig.cache
 F:\!!!AAAA\Proyectos\ImpresoraVirtual\PrintManager\obj\Debug\net8.0-windows\ref\PrintManager.dll
+F:\!!!AAAA\Proyectos\ImpresoraVirtual\PrintManager\obj\Debug\net8.0-windows\PrintManager.sourcelink.json

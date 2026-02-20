@@ -290,6 +290,20 @@ namespace PrintManager.Services
             writer.Write(visual, ticket);
         }
 
+        /// <summary>
+        /// Convierte un archivo PostScript (.ps/.prn) a PDF.
+        /// Usado por el SpoolWatcher para procesar archivos de la impresora virtual.
+        /// </summary>
+        public void ConvertPsToPdf(string psPath, string pdfOutputPath)
+        {
+            string gsPath = GetGhostscriptPath();
+            string args = $"-dQUIET -dBATCH -dNOPAUSE -dNOSAFER " +
+                          $"-dAutoRotatePages=/None " +
+                          $"-sDEVICE=pdfwrite -sOutputFile=\"{pdfOutputPath}\" " +
+                          $"\"{psPath}\"";
+            RunGs(gsPath, args);
+        }
+
         private void RunGs(string exe, string args)
         {
             var psi = new ProcessStartInfo

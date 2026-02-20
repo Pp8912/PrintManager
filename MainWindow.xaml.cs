@@ -14,6 +14,7 @@ namespace PrintManager
     {
         private readonly PrinterService _printerService;
         private readonly GhostscriptService _gsService;
+        private SpoolWatcherService? _spoolWatcher;
         private string? _currentPdfPath;
         private PageInfo? _pageInfo;
 
@@ -26,19 +27,65 @@ namespace PrintManager
             LoadPrinters();
             LoadColorOptions();
             LoadDocument();
+
+            // Iniciar monitoreo de carpeta spool si está habilitado
+            if (App.WatchSpool)
+            {
+                StartSpoolWatcher();
+            }
+        }
+
+        private void StartSpoolWatcher()
+        {
+            _spoolWatcher = new SpoolWatcherService(_gsService);
+            _spoolWatcher.DocumentReady += OnSpoolDocumentReady;
+            _spoolWatcher.Start();
+        }
+
+        /// <summary>
+        /// Se ejecuta cuando el SpoolWatcher detecta un nuevo documento de la impresora virtual.
+        /// </summary>
+        private void OnSpoolDocumentReady(string pdfPath)
+        {
+            // El evento viene de otro hilo, despachar al hilo UI
+            Dispatcher.Invoke(() =>
+            {
+                LoadDocumentFromPath(pdfPath);
+
+                // Traer la ventana al frente
+                if (WindowState == WindowState.Minimized)
+                    WindowState = WindowState.Normal;
+                Activate();
+                Topmost = true;
+                Topmost = false;
+                Focus();
+            });
+        }
+
+        /// <summary>
+        /// Carga un documento desde una ruta específica (usado por el SpoolWatcher y aperturas directas).
+        /// </summary>
+        public void LoadDocumentFromPath(string path)
+        {
+            App.InputFilePath = path;
+            _currentPdfPath = path;
+            LoadDocument();
         }
 
         private void LoadPrinters()
         {
             var printers = _printerService.GetInstalledPrinters();
-            PrinterSelector.ItemsSource = printers;
+            
+            // Filtrar la impresora virtual de la lista (no queremos imprimir a nosotros mismos)
+            var filtered = printers.Where(p => !p.Equals("PrintManager Color", StringComparison.OrdinalIgnoreCase)).ToList();
+            PrinterSelector.ItemsSource = filtered;
             
             string defaultPrinter = _printerService.GetDefaultPrinter();
-            if (printers.Contains(defaultPrinter))
+            if (filtered.Contains(defaultPrinter))
             {
                 PrinterSelector.SelectedItem = defaultPrinter;
             }
-            else if (printers.Count > 0)
+            else if (filtered.Count > 0)
             {
                 PrinterSelector.SelectedIndex = 0;
             }
@@ -153,9 +200,14 @@ namespace PrintManager
 
             if (openFileDialog.ShowDialog() == true)
             {
-                App.InputFilePath = openFileDialog.FileName;
-                LoadDocument();
+                LoadDocumentFromPath(openFileDialog.FileName);
             }
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            _spoolWatcher?.Dispose();
+            base.OnClosed(e);
         }
     }
 }
