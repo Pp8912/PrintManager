@@ -1,7 +1,6 @@
 F:\!!!AAAA\Proyectos\ImpresoraVirtual\PrintManager\obj\Debug\net8.0-windows\MainWindow.g.cs
 F:\!!!AAAA\Proyectos\ImpresoraVirtual\PrintManager\obj\Debug\net8.0-windows\App.g.cs
 F:\!!!AAAA\Proyectos\ImpresoraVirtual\PrintManager\obj\Debug\net8.0-windows\PrintManager_MarkupCompile.cache
-F:\!!!AAAA\Proyectos\ImpresoraVirtual\PrintManager\obj\Debug\net8.0-windows\PrintManager_MarkupCompile.lref
 F:\!!!AAAA\Proyectos\ImpresoraVirtual\PrintManager\bin\Debug\net8.0-windows\PrintManager.exe
 F:\!!!AAAA\Proyectos\ImpresoraVirtual\PrintManager\bin\Debug\net8.0-windows\PrintManager.deps.json
 F:\!!!AAAA\Proyectos\ImpresoraVirtual\PrintManager\bin\Debug\net8.0-windows\PrintManager.runtimeconfig.json

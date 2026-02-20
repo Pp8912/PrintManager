@@ -224,9 +224,6 @@
           },
           "Microsoft.WindowsDesktop.App": {
             "privateAssets": "none"
-          },
-          "Microsoft.WindowsDesktop.App.WPF": {
-            "privateAssets": "none"
           }
         },
         "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.305/PortableRuntimeIdentifierGraph.json"

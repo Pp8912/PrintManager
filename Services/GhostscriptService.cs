@@ -32,6 +32,50 @@ namespace PrintManager.Services
             return "gswin64c";
         }
 
+        /// <summary>Cuenta las páginas de un PDF.</summary>
+        public int GetPageCount(string? pdfPath)
+        {
+            if (!File.Exists(pdfPath)) return 0;
+
+            try
+            {
+                // Intentar leer /Count directamente del PDF
+                byte[] bytes = File.ReadAllBytes(pdfPath!);
+                string text = System.Text.Encoding.ASCII.GetString(bytes);
+                // Buscar /Type /Pages seguido de /Count N
+                var match = Regex.Match(text, @"/Type\s*/Pages[^>]*/Count\s+(\d+)");
+                if (match.Success)
+                    return int.Parse(match.Groups[1].Value);
+            }
+            catch { }
+
+            // Fallback: usar Ghostscript
+            try
+            {
+                string gsPath = GetGhostscriptPath();
+                var psi = new ProcessStartInfo
+                {
+                    FileName = gsPath,
+                    Arguments = $"-dQUIET -dNODISPLAY -dNOSAFER -c \"({pdfPath!.Replace("\\", "/")}) (r) file runpdfbegin pdfpagecount = quit\"",
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+                using var p = Process.Start(psi);
+                if (p != null)
+                {
+                    string output = p.StandardOutput.ReadToEnd().Trim();
+                    p.WaitForExit();
+                    if (int.TryParse(output, out int count))
+                        return count;
+                }
+            }
+            catch { }
+
+            return 1; // Default
+        }
+
         public BitmapImage? GeneratePreview(string? pdfPath, int pageNumber = 1)
         {
             if (!File.Exists(pdfPath)) return null;

@@ -12,9 +12,9 @@ namespace PrintManager.Models
         public bool IsNone { get; set; }
 
         /// <summary>Brush para mostrar la muestra de color en el ComboBox</summary>
-        public Brush DisplayBrush => IsNone
-            ? Brushes.Transparent
-            : new SolidColorBrush(Color.FromRgb(
+        public System.Windows.Media.Brush DisplayBrush => IsNone
+            ? System.Windows.Media.Brushes.Transparent
+            : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(
                 (byte)(R * 255), (byte)(G * 255), (byte)(B * 255)));
 
         /// <summary>Genera el PostScript para setcolortransfer con estos valores RGB</summary>
